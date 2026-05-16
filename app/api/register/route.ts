@@ -47,14 +47,11 @@ export async function POST(request: NextRequest) {
     // Fallback if we couldn't fetch the URL via API
     if (!checkoutUrl) {
       if (TICKET_TAILOR_EVENT_ID) {
-        // A generic fallback format, might not work depending on the exact event ID format
-        checkoutUrl = `https://www.tickettailor.com/checkout/view-event/id/${TICKET_TAILOR_EVENT_ID}`;
+        // Use the user's specific Ticket Tailor event link structure
+        checkoutUrl = `https://www.tickettailor.com/events/gaddiesbirthday/${TICKET_TAILOR_EVENT_ID}`;
       } else {
-        // If nothing is configured, just return an error
-        return NextResponse.json(
-          { error: "Ticket Tailor event is not fully configured." },
-          { status: 500 }
-        );
+        // Final fallback to the exact provided link
+        checkoutUrl = "https://www.tickettailor.com/events/gaddiesbirthday/2219397";
       }
     }
 
