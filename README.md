@@ -1,36 +1,135 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Birthday Party Ticket App
 
-## Getting Started
+A Next.js application for selling birthday party tickets with integrated payment processing (Stripe), ticket management (Ticket Tailor), and email collection (EmailOctopus).
 
-First, run the development server:
+## Features
+
+- **User Registration**: Form with validation for name, email, phone, and ticket quantity
+- **Payment Processing**: Stripe integration for secure payments (sandbox mode)
+- **Ticket Management**: Ticket Tailor API integration for ticket creation
+- **Email Collection**: EmailOctopus integration for building your email list
+- **Webhook Handlers**: Receives webhooks from Stripe, Ticket Tailor, and EmailOctopus
+- **Success Page**: Payment verification and confirmation page
+
+## Setup Instructions
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Create a `.env.local` file in the root directory and add the following variables:
+
+```env
+# Stripe
+STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
+
+# Ticket Tailor
+TICKET_TAILOR_API_KEY=your_ticket_tailor_api_key
+TICKET_TAILOR_EVENT_ID=your_event_id
+TICKET_TAILOR_WEBHOOK_SECRET=your_webhook_secret
+
+# EmailOctopus
+EMAIL_OCTOPUS_API_KEY=your_email_octopus_api_key
+EMAIL_OCTOPUS_LIST_ID=your_list_id
+EMAIL_OCTOPUS_WEBHOOK_SECRET=your_webhook_secret
+
+# App
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
+
+For detailed instructions on obtaining these keys, see [ENV_SETUP.md](./ENV_SETUP.md).
+
+### 3. Set Up Webhooks
+
+Configure webhooks for each service:
+
+- **Stripe**: `https://your-domain.com/api/webhooks/stripe`
+- **Ticket Tailor**: `https://your-domain.com/api/webhooks/ticket-tailor`
+- **EmailOctopus**: `https://your-domain.com/api/webhooks/email-octopus`
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+app/
+├── api/
+│   ├── register/
+│   │   └── route.ts          # Registration API with Stripe, Ticket Tailor, EmailOctopus
+│   ├── verify-session/
+│   │   └── route.ts          # Stripe session verification
+│   └── webhooks/
+│       ├── stripe/
+│       │   └── route.ts      # Stripe webhook handler
+│       ├── ticket-tailor/
+│       │   └── route.ts      # Ticket Tailor webhook handler
+│       └── email-octopus/
+│           └── route.ts      # EmailOctopus webhook handler
+├── page.tsx                  # Registration form
+└── success/
+    └── page.tsx              # Payment success page
+```
 
-## Learn More
+## Testing
 
-To learn more about Next.js, take a look at the following resources:
+### Stripe Test Mode
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use Stripe's test mode with these test card numbers:
+- **Success**: `4242 4242 4242 4242`
+- **Failure**: `4000 0000 0000 0002`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Ticket Tailor Sandbox
 
-## Deploy on Vercel
+Use Ticket Tailor's sandbox environment for testing ticket creation.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### EmailOctopus Free Tier
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Test email collection with EmailOctopus's free tier before upgrading.
+
+## Free Email Service Alternatives
+
+If you prefer alternatives to EmailOctopus, consider:
+- **Resend**: [resend.com](https://resend.com/) - Free tier available
+- **Mailgun**: [mailgun.com](https://www.mailgun.com/) - Free tier available
+- **ConvertKit**: [convertkit.com](https://convertkit.com/) - Free tier available
+
+See [ENV_SETUP.md](./ENV_SETUP.md) for integration details.
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Import project in [Vercel](https://vercel.com/new)
+3. Add environment variables in Vercel dashboard
+4. Deploy
+
+### Other Platforms
+
+Ensure you set the `NEXT_PUBLIC_BASE_URL` environment variable to your production domain.
+
+## Security Notes
+
+- Never commit `.env.local` to version control
+- Use webhook secrets to verify incoming webhooks
+- Enable HTTPS in production
+- Keep API keys secure and rotate them regularly
+
+## Support
+
+For detailed setup instructions, see [ENV_SETUP.md](./ENV_SETUP.md).
+
+## License
+
+MIT
