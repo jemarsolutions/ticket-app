@@ -406,7 +406,131 @@ export default function AdminPage() {
             </div>
           </>
         )}
+
+        {/* Attendees List */}
+        {!loading && status?.emailOctopus.configured && (
+          <div className="mt-8">
+            <AttendeesList />
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// ── Attendees List Component ──────────────────────────────────────────────────
+interface Attendee {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  createdAt: string;
+}
+
+function AttendeesList() {
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAttendees = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/attendees");
+      if (!res.ok) {
+        throw new Error("Failed to fetch attendees");
+      }
+      const data = await res.json();
+      setAttendees(data.attendees || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error fetching attendees");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendees();
+  }, [fetchAttendees]);
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-white font-semibold text-lg flex items-center gap-2">
+          <span>👥</span> Registered Attendees
+        </h3>
+        <button
+          onClick={fetchAttendees}
+          disabled={loading}
+          className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white/70 hover:text-white transition-colors disabled:opacity-50 flex items-center gap-1.5"
+        >
+          {loading ? (
+            <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
+          Refresh
+        </button>
+      </div>
+
+      {loading && attendees.length === 0 ? (
+        <div className="py-10 text-center text-white/40 text-sm">Loading attendees...</div>
+      ) : error ? (
+        <div className="py-5 px-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm">
+          {error}
+        </div>
+      ) : attendees.length === 0 ? (
+        <div className="py-10 text-center text-white/40 text-sm">No attendees found yet.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead>
+              <tr className="text-white/40 border-b border-white/10">
+                <th className="font-medium py-3 px-4">Name</th>
+                <th className="font-medium py-3 px-4">Email</th>
+                <th className="font-medium py-3 px-4">Status</th>
+                <th className="font-medium py-3 px-4">Date Added</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {attendees.map((attendee) => (
+                <tr key={attendee.id} className="hover:bg-white/[0.02] transition-colors text-white/80">
+                  <td className="py-3 px-4 font-medium text-white">
+                    {attendee.firstName || attendee.lastName
+                      ? `${attendee.firstName} ${attendee.lastName}`.trim()
+                      : "—"}
+                  </td>
+                  <td className="py-3 px-4">{attendee.email}</td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                      attendee.status === "SUBSCRIBED"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-white/10 text-white/50"
+                    }`}>
+                      {attendee.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-white/40">
+                    {new Date(attendee.createdAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit"
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
