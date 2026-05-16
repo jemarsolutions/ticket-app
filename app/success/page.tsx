@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +15,12 @@ function Confetti() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
 
     const colors = ["#a855f7", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#f472b6"];
     const pieces: {
@@ -68,7 +71,10 @@ function Confetti() {
     };
     draw();
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   return (
@@ -80,116 +86,7 @@ function Confetti() {
   );
 }
 
-// ── Session details type ───────────────────────────────────────────────────────
-interface SessionInfo {
-  name: string;
-  email: string;
-  numberOfTickets: string;
-  amountTotal: number;
-  currency: string;
-}
-
 function SuccessContent() {
-  const searchParams = useSearchParams();
-  const sessionId = searchParams.get("session_id");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-
-  useEffect(() => {
-    async function verifySession() {
-      if (!sessionId) {
-        setError("No session ID provided");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/verify-session?session_id=${sessionId}`);
-        if (!response.ok) {
-          throw new Error("Payment could not be verified");
-        }
-        const data = await response.json();
-        const s = data.session;
-        setSessionInfo({
-          name: s.metadata?.name || "Guest",
-          email: s.metadata?.email || s.customer_email || "",
-          numberOfTickets: s.metadata?.numberOfTickets || "1",
-          amountTotal: s.amount_total || 0,
-          currency: s.currency || "usd",
-        });
-        setShowConfetti(true);
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
-        setLoading(false);
-      }
-    }
-
-    verifySession();
-  }, [sessionId]);
-
-  if (loading) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          background: "linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 40%, #0d1a2e 100%)",
-          fontFamily: "'Inter', sans-serif",
-        }}
-      >
-        <div
-          className="rounded-3xl p-10 text-center max-w-md w-full mx-4"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <div className="w-14 h-14 mx-auto mb-5 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin" />
-          <p className="text-white/60 text-sm">Verifying your payment...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4"
-        style={{
-          background: "linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 40%, #0d1a2e 100%)",
-          fontFamily: "'Inter', sans-serif",
-        }}
-      >
-        <div
-          className="rounded-3xl p-10 text-center max-w-md w-full"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-5">
-            <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Verification Failed</h1>
-          <p className="text-white/50 mb-6 text-sm">{error}</p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white text-sm transition-all duration-200"
-            style={{ background: "linear-gradient(135deg, #7c3aed, #a855f7)" }}
-          >
-            ← Try Again
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
@@ -203,7 +100,7 @@ function SuccessContent() {
         rel="stylesheet"
       />
 
-      {showConfetti && <Confetti />}
+      <Confetti />
 
       <div className="relative z-10 w-full max-w-md">
         <div
@@ -227,39 +124,18 @@ function SuccessContent() {
 
           <div className="mb-6">
             <p className="text-emerald-400 font-semibold text-sm uppercase tracking-wider mb-2">
-              Payment Successful
+              Registration Complete
             </p>
             <h1 className="text-3xl font-black text-white mb-2">
               You&apos;re going to the party! 🎉
             </h1>
             <p className="text-white/50 text-sm">
-              {sessionInfo
-                ? `Hey ${sessionInfo.name}, your ${sessionInfo.numberOfTickets} ticket${parseInt(sessionInfo.numberOfTickets) > 1 ? "s are" : " is"} confirmed!`
-                : "Your tickets have been confirmed!"}
+              Your tickets have been confirmed and updates will be sent to your email!
             </p>
           </div>
 
           {/* Integration confirmations */}
           <div className="space-y-2.5 mb-6">
-            <div
-              className="flex items-center gap-3 p-3.5 rounded-xl text-left"
-              style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}
-            >
-              <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-emerald-300 font-semibold text-sm">Payment processed via Stripe</p>
-                <p className="text-white/40 text-xs">
-                  {sessionInfo
-                    ? `$${(sessionInfo.amountTotal / 100).toFixed(2)} charged`
-                    : "Payment confirmed"}
-                </p>
-              </div>
-            </div>
-
             <div
               className="flex items-center gap-3 p-3.5 rounded-xl text-left"
               style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}
@@ -287,24 +163,11 @@ function SuccessContent() {
               <div>
                 <p className="text-emerald-300 font-semibold text-sm">Added to guest mailing list</p>
                 <p className="text-white/40 text-xs">
-                  {sessionInfo?.email
-                    ? `Updates sent to ${sessionInfo.email}`
-                    : "You'll receive event updates"}
+                  You'll receive event updates
                 </p>
               </div>
             </div>
           </div>
-
-          {/* Session ID (compact) */}
-          {sessionId && (
-            <div
-              className="mb-6 p-3 rounded-xl"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <p className="text-white/30 text-xs mb-1">Session reference</p>
-              <p className="text-white/50 text-xs font-mono break-all">{sessionId}</p>
-            </div>
-          )}
 
           <Link
             href="/"

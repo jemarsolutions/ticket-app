@@ -4,11 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 interface StatusData {
-  stripe: {
-    configured: boolean;
-    webhookConfigured: boolean;
-    keyHint: string | null;
-  };
   ticketTailor: {
     configured: boolean;
     eventId: string | null;
@@ -226,7 +221,6 @@ export default function AdminPage() {
   };
 
   const allConfigured =
-    status?.stripe.configured &&
     status?.ticketTailor.configured &&
     status?.emailOctopus.configured;
 
@@ -337,43 +331,8 @@ export default function AdminPage() {
               />
             </div>
 
-            {/* Stripe + App config */}
+            {/* App config */}
             <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">💳</span>
-                  <div>
-                    <h3 className="text-white font-semibold text-lg">Stripe</h3>
-                    <div className="flex gap-2 flex-wrap mt-1">
-                      <StatusBadge
-                        configured={status?.stripe.configured ?? false}
-                        label="Secret Key"
-                      />
-                      <StatusBadge
-                        configured={status?.stripe.webhookConfigured ?? false}
-                        label="Webhook Secret"
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/50 text-sm">Key hint</span>
-                    <span className="text-sm font-mono text-white/80">
-                      {status?.stripe.keyHint || "Not set"}
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-5 p-3 bg-violet-500/10 border border-violet-500/20 rounded-xl">
-                  <p className="text-violet-300 text-xs">
-                    <strong>Webhook URL:</strong> {status?.app.baseUrl}/api/webhooks/stripe
-                  </p>
-                  <p className="text-white/40 text-xs mt-1">
-                    Add this to your Stripe dashboard → Developers → Webhooks
-                  </p>
-                </div>
-              </div>
-
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-2xl">🎂</span>
@@ -410,16 +369,6 @@ export default function AdminPage() {
               </h3>
               <div className="space-y-3">
                 {[
-                  {
-                    done: status?.stripe.configured ?? false,
-                    label: "Add STRIPE_SECRET_KEY to .env.local",
-                    detail: "Dashboard → Developers → API keys → Secret key",
-                  },
-                  {
-                    done: status?.stripe.webhookConfigured ?? false,
-                    label: "Add STRIPE_WEBHOOK_SECRET to .env.local",
-                    detail: `Dashboard → Developers → Webhooks → Add endpoint → ${status?.app.baseUrl}/api/webhooks/stripe`,
-                  },
                   {
                     done: status?.ticketTailor.configured ?? false,
                     label: "Add Ticket Tailor API key, Event ID, and Ticket Type ID",

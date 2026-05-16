@@ -6,16 +6,6 @@ import { NextResponse } from "next/server";
  * Never returns the actual key values — only whether they are set.
  */
 export async function GET() {
-  const stripeConfigured = !!(
-    process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_SECRET_KEY !== "sk_test_REPLACE_WITH_YOUR_STRIPE_SECRET_KEY"
-  );
-
-  const stripeWebhookConfigured = !!(
-    process.env.STRIPE_WEBHOOK_SECRET &&
-    process.env.STRIPE_WEBHOOK_SECRET !== "whsec_REPLACE_WITH_YOUR_STRIPE_WEBHOOK_SECRET"
-  );
-
   const ticketTailorConfigured = !!(
     process.env.TICKET_TAILOR_API_KEY &&
     process.env.TICKET_TAILOR_API_KEY !== "REPLACE_WITH_YOUR_TICKET_TAILOR_API_KEY" &&
@@ -33,13 +23,6 @@ export async function GET() {
   );
 
   return NextResponse.json({
-    stripe: {
-      configured: stripeConfigured,
-      webhookConfigured: stripeWebhookConfigured,
-      keyHint: process.env.STRIPE_SECRET_KEY
-        ? `sk_...${process.env.STRIPE_SECRET_KEY.slice(-4)}`
-        : null,
-    },
     ticketTailor: {
       configured: ticketTailorConfigured,
       eventId: process.env.TICKET_TAILOR_EVENT_ID || null,
