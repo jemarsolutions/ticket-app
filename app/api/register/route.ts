@@ -77,6 +77,11 @@ export async function POST(request: NextRequest) {
 
 async function addToEmailOctopus(email: string, name: string) {
   try {
+    // Split full name into first and last name
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+
     const response = await fetch(
       `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
       {
@@ -88,7 +93,8 @@ async function addToEmailOctopus(email: string, name: string) {
           api_key: EMAIL_OCTOPUS_API_KEY,
           email_address: email,
           fields: {
-            Name: name,
+            FirstName: firstName,
+            LastName: lastName,
           },
           status: "SUBSCRIBED",
         }),
