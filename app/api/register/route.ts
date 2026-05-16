@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const EMAIL_OCTOPUS_API_KEY = process.env.EMAIL_OCTOPUS_API_KEY || "";
+const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -11,6 +14,11 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 },
       );
+    }
+
+    // Capture the email immediately before redirecting to guarantee they are recorded
+    if (EMAIL_OCTOPUS_API_KEY && EMAIL_OCTOPUS_LIST_ID) {
+      await addToEmailOctopus(email, name);
     }
 
     // Instead of Stripe, we will redirect the user to the Ticket Tailor event checkout page.
@@ -64,5 +72,42 @@ export async function POST(request: NextRequest) {
       { error: "Registration failed. Please try again." },
       { status: 500 },
     );
+  }
+}
+
+async function addToEmailOctopus(email: string, name: string) {
+  try {
+    const response = await fetch(
+      `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          api_key: EMAIL_OCTOPUS_API_KEY,
+          email_address: email,
+          fields: {
+            Name: name,
+          },
+          status: "SUBSCRIBED",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      // A 422 with "MEMBER_EXISTS_WITH_EMAIL_ADDRESS" is not a failure — just log it
+      if (errorText.includes("MEMBER_EXISTS_WITH_EMAIL_ADDRESS")) {
+        console.log("EmailOctopus: contact already exists for", email);
+      } else {
+        console.error("EmailOctopus error:", errorText);
+      }
+    } else {
+      console.log("EmailOctopus: contact added for", email);
+    }
+  } catch (error) {
+    // Non-fatal — don't block registration if email list fails
+    console.error("EmailOctopus error (non-fatal):", error);
   }
 }
