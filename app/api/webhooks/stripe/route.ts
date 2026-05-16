@@ -3,8 +3,15 @@ import Stripe from "stripe";
 import { headers } from "next/headers";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+const TICKET_TAILOR_API_KEY = process.env.TICKET_TAILOR_API_KEY || "";
+const TICKET_TAILOR_EVENT_ID = process.env.TICKET_TAILOR_EVENT_ID || "";
+const TICKET_TAILOR_TICKET_TYPE_ID =
+  process.env.TICKET_TAILOR_TICKET_TYPE_ID || "";
+
+const EMAIL_OCTOPUS_API_KEY = process.env.EMAIL_OCTOPUS_API_KEY || "";
+const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,18 +41,21 @@ export async function POST(request: NextRequest) {
 
     // Handle the event
     switch (event.type) {
-      case "checkout.session.completed":
+      case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         await handleCheckoutSessionCompleted(session);
         break;
-      case "payment_intent.succeeded":
+      }
+      case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log("Payment succeeded:", paymentIntent.id);
+        console.log("Payment intent succeeded:", paymentIntent.id);
         break;
-      case "payment_intent.payment_failed":
+      }
+      case "payment_intent.payment_failed": {
         const failedPayment = event.data.object as Stripe.PaymentIntent;
         console.log("Payment failed:", failedPayment.id);
         break;
+      }
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -66,13 +76,14 @@ async function handleCheckoutSessionCompleted(
   const metadata = session.metadata;
 
   if (!metadata) {
-    console.error("No metadata in session");
+    console.error("Stripe webhook: no metadata in session", session.id);
     return;
   }
 
   const { name, email, phone, numberOfTickets } = metadata;
+  const quantity = parseInt(numberOfTickets, 10);
 
-  console.log("Payment successful for:", {
+  console.log("Payment confirmed for:", {
     name,
     email,
     phone,
@@ -80,12 +91,120 @@ async function handleCheckoutSessionCompleted(
     sessionId: session.id,
   });
 
-  // Here you can:
-  // 1. Send confirmation email
-  // 2. Update your database
-  // 3. Trigger Ticket Tailor ticket issuance
-  // 4. Log the successful payment
+  // Issue ticket in Ticket Tailor AFTER payment is confirmed
+  if (TICKET_TAILOR_API_KEY && TICKET_TAILOR_EVENT_ID && TICKET_TAILOR_TICKET_TYPE_ID) {
+    await createTicketTailorIssuedTicket(name, email, phone, quantity);
+  } else {
+    console.warn(
+      "Ticket Tailor not configured — skipping ticket issuance. " +
+        "Set TICKET_TAILOR_API_KEY, TICKET_TAILOR_EVENT_ID, and TICKET_TAILOR_TICKET_TYPE_ID in .env.local",
+    );
+  }
 
-  // Example: You could call your Ticket Tailor integration here
-  // if you didn't do it during registration
+  // EmailOctopus: add as fallback in case registration step was skipped
+  if (EMAIL_OCTOPUS_API_KEY && EMAIL_OCTOPUS_LIST_ID) {
+    await ensureEmailOctopusContact(email, name);
+  }
+}
+
+/**
+ * Creates an issued ticket in Ticket Tailor using the correct v1 API endpoint.
+ *
+ * Authentication: HTTP Basic Auth with API key as username, no password.
+ * Endpoint: POST /v1/issued_tickets
+ * Content-Type: application/x-www-form-urlencoded
+ */
+async function createTicketTailorIssuedTicket(
+  name: string,
+  email: string,
+  phone: string,
+  quantity: number,
+) {
+  // Build Basic Auth header: base64("apiKey:")
+  const credentials = Buffer.from(`${TICKET_TAILOR_API_KEY}:`).toString(
+    "base64",
+  );
+
+  // Ticket Tailor API uses form-urlencoded for POST bodies
+  const params = new URLSearchParams({
+    full_name: name,
+    email,
+    event_id: TICKET_TAILOR_EVENT_ID,
+    ticket_type_id: TICKET_TAILOR_TICKET_TYPE_ID,
+    quantity: quantity.toString(),
+  });
+
+  if (phone) {
+    params.set("phone", phone);
+  }
+
+  try {
+    const response = await fetch(
+      "https://api.tickettailor.com/v1/issued_tickets",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: params.toString(),
+      },
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(
+        `Ticket Tailor error (${response.status}):`,
+        errorBody,
+      );
+    } else {
+      const ticket = await response.json();
+      console.log(
+        "Ticket Tailor: ticket issued successfully",
+        ticket.id,
+        "for",
+        email,
+      );
+    }
+  } catch (error) {
+    console.error("Ticket Tailor network error:", error);
+  }
+}
+
+/**
+ * Ensures a contact exists in EmailOctopus. Called from webhook as a fallback
+ * in case the registration step failed to add them.
+ */
+async function ensureEmailOctopusContact(email: string, name: string) {
+  try {
+    const response = await fetch(
+      `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          api_key: EMAIL_OCTOPUS_API_KEY,
+          email_address: email,
+          fields: { Name: name },
+          status: "SUBSCRIBED",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      if (errorText.includes("MEMBER_EXISTS_WITH_EMAIL_ADDRESS")) {
+        console.log("EmailOctopus: contact already exists for", email);
+      } else {
+        console.error("EmailOctopus webhook error:", errorText);
+      }
+    } else {
+      console.log("EmailOctopus: contact confirmed for", email);
+    }
+  } catch (error) {
+    console.error("EmailOctopus webhook error (non-fatal):", error);
+  }
 }
