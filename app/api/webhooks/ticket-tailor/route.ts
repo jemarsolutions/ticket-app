@@ -4,6 +4,9 @@ import { createHmac } from "node:crypto";
 const TICKET_TAILOR_WEBHOOK_SECRET =
   process.env.TICKET_TAILOR_WEBHOOK_SECRET || "";
 
+const EMAIL_OCTOPUS_API_KEY = process.env.EMAIL_OCTOPUS_API_KEY || "";
+const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -39,6 +42,7 @@ export async function POST(request: NextRequest) {
         await handleTicketPurchased(body);
         break;
       case "order.completed":
+      case "order.created":
         await handleOrderCompleted(body);
         break;
       default:
@@ -55,22 +59,84 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleTicketCreated(data: Record<string, unknown>) {
-  console.log("Ticket created:", data);
+async function handleTicketCreated(data: any) {
+  console.log("Ticket created:", data.id);
   // Handle ticket creation logic
-  // Update database, send notifications, etc.
 }
 
-async function handleTicketPurchased(data: Record<string, unknown>) {
-  console.log("Ticket purchased:", data);
+async function handleTicketPurchased(data: any) {
+  console.log("Ticket purchased:", data.id);
   // Handle ticket purchase logic
-  // Could trigger email confirmation, etc.
 }
 
-async function handleOrderCompleted(data: Record<string, unknown>) {
-  console.log("Order completed:", data);
+async function handleOrderCompleted(data: any) {
+  console.log("Order completed:", data.id);
   // Handle order completion logic
-  // This is where you might want to send final confirmation
+  // Extract email and name to add to EmailOctopus
+  const payload = data.payload || data;
+  let email = payload.buyer_email || payload.email;
+  let name = payload.buyer_name || payload.name || "Attendee";
+
+  // Sometimes it's nested in payload.buyer
+  if (!email && payload.buyer) {
+    email = payload.buyer.email;
+    name = payload.buyer.name || name;
+  }
+
+  if (email) {
+    console.log(`Adding ${email} to Email Octopus...`);
+    await addToEmailOctopus(email, name);
+  } else {
+    console.log("No email found in order data, cannot add to Email Octopus.");
+  }
+}
+
+async function addToEmailOctopus(email: string, name: string) {
+  if (!EMAIL_OCTOPUS_API_KEY || !EMAIL_OCTOPUS_LIST_ID) {
+    console.log("Email Octopus credentials missing, skipping.");
+    return;
+  }
+
+  try {
+    // Split full name into first and last name
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+
+    const response = await fetch(
+      `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          api_key: EMAIL_OCTOPUS_API_KEY,
+          email_address: email,
+          fields: {
+            FirstName: firstName,
+            LastName: lastName,
+          },
+          status: "SUBSCRIBED",
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      // A 422 with "MEMBER_EXISTS_WITH_EMAIL_ADDRESS" is not a failure — just log it
+      if (errorText.includes("MEMBER_EXISTS_WITH_EMAIL_ADDRESS")) {
+        console.log("EmailOctopus: contact already exists for", email);
+      } else {
+        console.error("EmailOctopus error:", errorText);
+      }
+    } else {
+      console.log("EmailOctopus: contact added for", email);
+    }
+  } catch (error) {
+    // Non-fatal — don't block registration if email list fails
+    console.error("EmailOctopus error (non-fatal):", error);
+  }
 }
 
 // Simple signature generation (adjust based on Ticket Tailor's actual implementation)

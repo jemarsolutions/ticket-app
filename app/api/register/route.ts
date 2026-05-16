@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || ""); // no api version needed
-
-const TICKET_TAILOR_API_KEY = process.env.TICKET_TAILOR_API_KEY || "";
-const TICKET_TAILOR_EVENT_ID = process.env.TICKET_TAILOR_EVENT_ID || "";
 const EMAIL_OCTOPUS_API_KEY = process.env.EMAIL_OCTOPUS_API_KEY || "";
 const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
 
@@ -21,27 +16,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Add email to EmailOctopus (or alternative)
+    // Capture the email immediately before redirecting to guarantee they are recorded
     if (EMAIL_OCTOPUS_API_KEY && EMAIL_OCTOPUS_LIST_ID) {
       await addToEmailOctopus(email, name);
     }
 
-    // Step 2: Create Stripe checkout session
-    const session = await createStripeSession(
-      email,
-      name,
-      numberOfTickets,
-      phone,
-    );
+    // Instead of Stripe, we will redirect the user to the Ticket Tailor event checkout page.
+    const TICKET_TAILOR_API_KEY = process.env.TICKET_TAILOR_API_KEY || "";
+    const TICKET_TAILOR_EVENT_ID = process.env.TICKET_TAILOR_EVENT_ID || "";
+    let checkoutUrl = "";
 
-    // Step 3: Optionally create ticket in Ticket Tailor (can also be done via webhook)
     if (TICKET_TAILOR_API_KEY && TICKET_TAILOR_EVENT_ID) {
-      await createTicketTailorTicket(name, email, phone, numberOfTickets);
+      try {
+        // Fetch event details from Ticket Tailor to get the real checkout URL
+        const response = await fetch(
+          `https://api.tickettailor.com/v1/events/${TICKET_TAILOR_EVENT_ID}`,
+          {
+            headers: {
+              Accept: "application/json",
+              Authorization: `Basic ${Buffer.from(TICKET_TAILOR_API_KEY + ":").toString("base64")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const eventData = await response.json();
+          if (eventData.checkout_url) {
+            checkoutUrl = eventData.checkout_url;
+          }
+        } else {
+          console.error("Failed to fetch Ticket Tailor event:", await response.text());
+        }
+      } catch (err) {
+        console.error("Error communicating with Ticket Tailor:", err);
+      }
+    }
+
+    // Fallback if we couldn't fetch the URL via API
+    if (!checkoutUrl) {
+      if (TICKET_TAILOR_EVENT_ID) {
+        // Use the user's specific Ticket Tailor event link structure
+        checkoutUrl = `https://www.tickettailor.com/events/gaddiesbirthday/${TICKET_TAILOR_EVENT_ID}`;
+      } else {
+        // Final fallback to the exact provided link
+        checkoutUrl = "https://www.tickettailor.com/events/gaddiesbirthday/2219397";
+      }
     }
 
     return NextResponse.json({
-      redirectUrl: session.url,
-      sessionId: session.id,
+      redirectUrl: checkoutUrl,
     });
   } catch (error) {
     console.error("Registration error:", error);
@@ -54,8 +77,13 @@ export async function POST(request: NextRequest) {
 
 async function addToEmailOctopus(email: string, name: string) {
   try {
+    // Split full name into first and last name
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+
     const response = await fetch(
-      `https://api.emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
+      `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
       {
         method: "POST",
         headers: {
@@ -65,7 +93,8 @@ async function addToEmailOctopus(email: string, name: string) {
           api_key: EMAIL_OCTOPUS_API_KEY,
           email_address: email,
           fields: {
-            Name: name,
+            FirstName: firstName,
+            LastName: lastName,
           },
           status: "SUBSCRIBED",
         }),
@@ -73,79 +102,18 @@ async function addToEmailOctopus(email: string, name: string) {
     );
 
     if (!response.ok) {
-      console.error("EmailOctopus error:", await response.text());
+      const errorText = await response.text();
+      // A 422 with "MEMBER_EXISTS_WITH_EMAIL_ADDRESS" is not a failure — just log it
+      if (errorText.includes("MEMBER_EXISTS_WITH_EMAIL_ADDRESS")) {
+        console.log("EmailOctopus: contact already exists for", email);
+      } else {
+        console.error("EmailOctopus error:", errorText);
+      }
+    } else {
+      console.log("EmailOctopus: contact added for", email);
     }
   } catch (error) {
-    console.error("EmailOctopus error:", error);
-  }
-}
-
-async function createStripeSession(
-  email: string,
-  name: string,
-  numberOfTickets: number,
-  phone?: string,
-) {
-  const ticketPrice = 10; // $10 per ticket
-
-  const session = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: "Birthday Party Ticket",
-            description: `${numberOfTickets} ticket(s) for the birthday party`,
-          },
-          unit_amount: ticketPrice * 100,
-        },
-        quantity: numberOfTickets,
-      },
-    ],
-    mode: "payment",
-    success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/?cancelled=true`,
-    customer_email: email,
-    metadata: {
-      name,
-      email,
-      phone: phone || "",
-      numberOfTickets: numberOfTickets.toString(),
-    },
-  });
-
-  return session;
-}
-
-async function createTicketTailorTicket(
-  name: string,
-  email: string,
-  phone: string | undefined,
-  numberOfTickets: number,
-) {
-  try {
-    const response = await fetch(
-      `https://api.tickettailor.com/v1/events/${TICKET_TAILOR_EVENT_ID}/tickets`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          quantity: numberOfTickets,
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      console.error("Ticket Tailor error:", await response.text());
-    }
-  } catch (error) {
-    console.error("Ticket Tailor error:", error);
+    // Non-fatal — don't block registration if email list fails
+    console.error("EmailOctopus error (non-fatal):", error);
   }
 }
