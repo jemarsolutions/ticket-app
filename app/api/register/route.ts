@@ -21,23 +21,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Add email to EmailOctopus (or alternative)
+    // Step 1: Add email to EmailOctopus
     if (EMAIL_OCTOPUS_API_KEY && EMAIL_OCTOPUS_LIST_ID) {
       await addToEmailOctopus(email, name);
     }
 
-    // Step 2: Create Stripe checkout session
+    // Step 2: Create ticket in Ticket Tailor and get checkout URL
+    if (TICKET_TAILOR_API_KEY && TICKET_TAILOR_EVENT_ID) {
+      const ticketUrl = await createTicketTailorTicket(
+        name,
+        email,
+        phone,
+        numberOfTickets,
+      );
+
+      return NextResponse.json({
+        redirectUrl: ticketUrl,
+      });
+    }
+
+    // Fallback: If Ticket Tailor is not configured, use Stripe
     const session = await createStripeSession(
       email,
       name,
       numberOfTickets,
       phone,
     );
-
-    // Step 3: Optionally create ticket in Ticket Tailor (can also be done via webhook)
-    if (TICKET_TAILOR_API_KEY && TICKET_TAILOR_EVENT_ID) {
-      await createTicketTailorTicket(name, email, phone, numberOfTickets);
-    }
 
     return NextResponse.json({
       redirectUrl: session.url,
@@ -123,7 +132,7 @@ async function createTicketTailorTicket(
   email: string,
   phone: string | undefined,
   numberOfTickets: number,
-) {
+): Promise<string> {
   try {
     const response = await fetch(
       `https://api.tickettailor.com/v1/events/${TICKET_TAILOR_EVENT_ID}/tickets`,
@@ -132,6 +141,7 @@ async function createTicketTailorTicket(
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          Authorization: `Bearer ${TICKET_TAILOR_API_KEY}`,
         },
         body: JSON.stringify({
           name,
@@ -143,9 +153,22 @@ async function createTicketTailorTicket(
     );
 
     if (!response.ok) {
-      console.error("Ticket Tailor error:", await response.text());
+      const errorText = await response.text();
+      console.error("Ticket Tailor error:", errorText);
+      throw new Error(`Ticket Tailor error: ${errorText}`);
     }
+
+    const data = await response.json();
+
+    // Return the checkout URL from Ticket Tailor
+    // The response structure may vary, adjust based on actual API response
+    return (
+      data.checkout_url ||
+      data.url ||
+      `https://www.tickettailor.com/checkout/event/${TICKET_TAILOR_EVENT_ID}`
+    );
   } catch (error) {
     console.error("Ticket Tailor error:", error);
+    throw error;
   }
 }
