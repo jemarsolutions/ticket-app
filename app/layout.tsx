@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Gaddie's 5th Birthday! 🎂",
   description: "You're invited to celebrate Gaddie's 5th Birthday. RSVP here!",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
