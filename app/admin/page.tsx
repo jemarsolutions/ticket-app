@@ -58,6 +58,13 @@ function AttendeesList() {
 
   useEffect(() => {
     fetchAttendees();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchAttendees();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [fetchAttendees]);
 
   return (
@@ -176,6 +183,21 @@ function AttendeesList() {
 }
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === "0629") {
+      setIsAuthenticated(true);
+      setPinError(false);
+    } else {
+      setPinError(true);
+      setPinInput("");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d0d1a]" style={{ fontFamily: "'Inter', sans-serif" }}>
       <link
@@ -208,8 +230,29 @@ export default function AdminPage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-10">
-        {/* Attendees List */}
-        <AttendeesList />
+        {!isAuthenticated ? (
+          <div className="max-w-sm mx-auto mt-20 bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm shadow-xl text-center">
+            <div className="text-4xl mb-4">🔒</div>
+            <h2 className="text-white font-bold text-xl mb-2">Admin Access</h2>
+            <p className="text-white/50 text-sm mb-6">Enter the PIN to view the guest list.</p>
+            <form onSubmit={handlePinSubmit}>
+              <input
+                type="password"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                placeholder="Enter PIN (1234)"
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-center text-white text-lg tracking-widest focus:outline-none focus:border-violet-500/50 mb-4"
+                autoFocus
+              />
+              {pinError && <p className="text-red-400 text-xs mb-4">Incorrect PIN. Try again.</p>}
+              <button type="submit" className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold transition-colors shadow-[0_4px_15px_rgba(139,92,246,0.3)]">
+                Unlock Dashboard
+              </button>
+            </form>
+          </div>
+        ) : (
+          <AttendeesList />
+        )}
       </div>
     </div>
   );

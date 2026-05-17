@@ -91,7 +91,7 @@ function SuccessContent() {
     <div
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        background: "linear-gradient(135deg, #0d0d1a 0%, #0d2a1a 40%, #0d0d1a 100%)",
+        background: "linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 40%, #0d1a2e 100%)",
         fontFamily: "'Inter', sans-serif",
       }}
     >
@@ -114,59 +114,22 @@ function SuccessContent() {
         >
           {/* Success icon */}
           <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping" />
-            <div className="relative w-20 h-20 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-              <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="absolute inset-0 rounded-full bg-violet-500/20 animate-ping" />
+            <div className="relative w-20 h-20 rounded-full bg-violet-500/20 border border-violet-500/40 flex items-center justify-center text-4xl">
+              🎂
             </div>
           </div>
 
-          <div className="mb-6">
-            <p className="text-emerald-400 font-semibold text-sm uppercase tracking-wider mb-2">
-              Registration Complete
+          <div className="mb-8">
+            <p className="text-violet-400 font-semibold text-sm uppercase tracking-wider mb-2">
+              RSVP Confirmed
             </p>
-            <h1 className="text-3xl font-black text-white mb-2">
-              You&apos;re going to the party! 🎉
+            <h1 className="text-3xl font-black text-white mb-3">
+              You&apos;re on the guest list! 🎉
             </h1>
-            <p className="text-white/50 text-sm">
-              Your tickets have been confirmed and updates will be sent to your email!
+            <p className="text-white/60 text-sm">
+              We are so excited to celebrate with you. We'll send you any important updates via email as the big day approaches!
             </p>
-          </div>
-
-          {/* Integration confirmations */}
-          <div className="space-y-2.5 mb-6">
-            <div
-              className="flex items-center gap-3 p-3.5 rounded-xl text-left"
-              style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}
-            >
-              <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-emerald-300 font-semibold text-sm">Ticket issued via Ticket Tailor</p>
-                <p className="text-white/40 text-xs">Check your email for your ticket</p>
-              </div>
-            </div>
-
-            <div
-              className="flex items-center gap-3 p-3.5 rounded-xl text-left"
-              style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)" }}
-            >
-              <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-emerald-300 font-semibold text-sm">Added to guest mailing list</p>
-                <p className="text-white/40 text-xs">
-                  You'll receive event updates
-                </p>
-              </div>
-            </div>
           </div>
 
           <Link
