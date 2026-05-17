@@ -15,18 +15,13 @@ const registrationSchema = z.object({
     .min(10, "Phone number must be at least 10 characters")
     .optional()
     .or(z.literal("")),
-  numberOfTickets: z
-    .number()
-    .min(1, "At least 1 ticket required")
-    .max(10, "Maximum 10 tickets"),
 });
 
 type RegistrationForm = z.infer<typeof registrationSchema>;
 
-const EVENT_NAME = process.env.NEXT_PUBLIC_EVENT_NAME || "Birthday Party";
-const EVENT_DATE = process.env.NEXT_PUBLIC_EVENT_DATE || "Saturday, June 28, 2025";
-const EVENT_LOCATION = process.env.NEXT_PUBLIC_EVENT_LOCATION || "123 Celebration Ave";
-const TICKET_PRICE_LABEL = process.env.NEXT_PUBLIC_TICKET_PRICE_LABEL || "$10.00";
+const EVENT_NAME = process.env.NEXT_PUBLIC_EVENT_NAME || "Gaddie's Big Day";
+const EVENT_DATE = process.env.NEXT_PUBLIC_EVENT_DATE || "Monday, June 29, 2026";
+const EVENT_LOCATION = process.env.NEXT_PUBLIC_EVENT_LOCATION || "Villa Teresita, Talisay";
 
 // ── Animated particle canvas ──────────────────────────────────────────────────
 function ParticleCanvas() {
@@ -106,7 +101,6 @@ function ParticleCanvas() {
 function HomeContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ticketCount, setTicketCount] = useState(1);
   const [cancelled, setCancelled] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -124,13 +118,7 @@ function HomeContent() {
     formState: { errors },
   } = useForm<RegistrationForm>({
     resolver: zodResolver(registrationSchema),
-    defaultValues: { numberOfTickets: 1 },
   });
-
-  const watchTickets = watch("numberOfTickets");
-  useEffect(() => {
-    if (!isNaN(watchTickets)) setTicketCount(watchTickets);
-  }, [watchTickets]);
 
   const onSubmit = async (data: RegistrationForm) => {
     setIsSubmitting(true);
@@ -156,10 +144,6 @@ function HomeContent() {
       setIsSubmitting(false);
     }
   };
-
-  const totalPrice = (
-    ticketCount * parseFloat(TICKET_PRICE_LABEL.replace(/[^0-9.]/g, ""))
-  ).toFixed(2);
 
   return (
     <div
@@ -358,62 +342,21 @@ function HomeContent() {
               )}
             </div>
 
-            {/* Ticket count */}
-            <div>
-              <label className="block text-white/70 text-sm font-medium mb-2" htmlFor="numberOfTickets">
-                Number of Tickets <span className="text-violet-400">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  {...register("numberOfTickets", { valueAsNumber: true })}
-                  id="numberOfTickets"
-                  type="number"
-                  min="1"
-                  max="10"
-                  className="w-full px-4 py-3.5 rounded-xl text-white placeholder-white/30 text-sm outline-none transition-all duration-200 appearance-none"
-                  style={{
-                    background: "rgba(255,255,255,0.07)",
-                    border: errors.numberOfTickets
-                      ? "1px solid rgba(239,68,68,0.6)"
-                      : "1px solid rgba(255,255,255,0.12)",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.border = "1px solid rgba(167,139,250,0.6)";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(167,139,250,0.15)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.border = errors.numberOfTickets
-                      ? "1px solid rgba(239,68,68,0.6)"
-                      : "1px solid rgba(255,255,255,0.12)";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-              {errors.numberOfTickets && (
-                <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  {errors.numberOfTickets.message}
-                </p>
-              )}
-            </div>
-
-            {/* Price summary */}
+            {/* Celebration note */}
             <div
-              className="rounded-2xl px-5 py-4 flex items-center justify-between"
+              className="rounded-2xl px-5 py-4 flex flex-col items-center justify-center text-center gap-1.5"
               style={{
                 background: "rgba(167,139,250,0.1)",
                 border: "1px solid rgba(167,139,250,0.2)",
               }}
             >
-              <div className="flex items-center gap-2 text-white/60 text-sm">
-                <span>🎟️</span>
-                <span>
-                  {ticketCount} ticket{ticketCount > 1 ? "s" : ""} × {TICKET_PRICE_LABEL}
-                </span>
-              </div>
-              <div className="text-white font-bold text-lg">${totalPrice}</div>
+              <span className="text-xl">🎂</span>
+              <p className="text-white/80 font-semibold text-sm">
+                Party Entrance is Free!
+              </p>
+              <p className="text-white/50 text-xs mt-0.5">
+                We can&apos;t wait to celebrate with you.
+              </p>
             </div>
 
             {/* Submit */}
@@ -445,7 +388,7 @@ function HomeContent() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                   </svg>
-                  Get My Tickets →
+                  RSVP to the Party! 🎉
                 </span>
               )}
             </button>
@@ -457,7 +400,7 @@ function HomeContent() {
               <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              Secure payment
+              Secure RSVP
             </span>
             <span className="flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
