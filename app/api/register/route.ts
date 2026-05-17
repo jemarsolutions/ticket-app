@@ -6,10 +6,10 @@ const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, numberOfTickets } = body;
+    const { name, email, phone } = body;
 
     // Validate input
-    if (!name || !email || !numberOfTickets) {
+    if (!name || !email) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
