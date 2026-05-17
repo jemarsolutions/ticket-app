@@ -6,7 +6,7 @@ const EMAIL_OCTOPUS_LIST_ID = process.env.EMAIL_OCTOPUS_LIST_ID || "";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone } = body;
+    const { name, email, phone, message } = body;
 
     // Validate input
     if (!name || !email) {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Capture the email immediately before redirecting to guarantee they are recorded
     if (EMAIL_OCTOPUS_API_KEY && EMAIL_OCTOPUS_LIST_ID) {
-      await addToEmailOctopus(email, name);
+      await addToEmailOctopus(email, name, message);
     }
 
     // Instead of Stripe, we will redirect the user to the Ticket Tailor event checkout page.
@@ -75,12 +75,21 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function addToEmailOctopus(email: string, name: string) {
+async function addToEmailOctopus(email: string, name: string, message?: string) {
   try {
     // Split full name into first and last name
     const nameParts = name.trim().split(" ");
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ");
+
+    const fields: Record<string, string> = {
+      FirstName: firstName,
+      LastName: lastName,
+    };
+    
+    if (message) {
+      fields.Message = message;
+    }
 
     const response = await fetch(
       `https://emailoctopus.com/api/1.6/lists/${EMAIL_OCTOPUS_LIST_ID}/contacts`,
@@ -92,10 +101,7 @@ async function addToEmailOctopus(email: string, name: string) {
         body: JSON.stringify({
           api_key: EMAIL_OCTOPUS_API_KEY,
           email_address: email,
-          fields: {
-            FirstName: firstName,
-            LastName: lastName,
-          },
+          fields: fields,
           status: "SUBSCRIBED",
         }),
       },

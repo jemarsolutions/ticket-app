@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Suspense } from "react";
+import Image from "next/image";
 
 const registrationSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -15,6 +16,7 @@ const registrationSchema = z.object({
     .min(10, "Phone number must be at least 10 characters")
     .optional()
     .or(z.literal("")),
+  message: z.string().optional(),
 });
 
 type RegistrationForm = z.infer<typeof registrationSchema>;
@@ -40,7 +42,7 @@ function ParticleCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
-    const colors = ["#a855f7", "#ec4899", "#8b5cf6", "#f472b6", "#c084fc"];
+    const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"];
     const particles: {
       x: number;
       y: number;
@@ -94,6 +96,53 @@ function ParticleCanvas() {
       className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 0 }}
     />
+  );
+}
+
+// ── Countdown Timer ───────────────────────────────────────────────────────────
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
+
+  useEffect(() => {
+    // Basic date parsing. Assumes format like "Monday, June 29, 2026" works with new Date()
+    const target = new Date(targetDate).getTime();
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const distance = target - now;
+
+      if (distance < 0 || isNaN(distance)) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0 });
+        return;
+      }
+
+      setTimeLeft({
+        days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+      });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
+    return () => clearInterval(interval);
+  }, [targetDate]);
+
+  return (
+    <div className="flex items-center justify-center gap-4 mt-6 mb-2">
+      {[
+        { label: "DAYS", value: timeLeft.days },
+        { label: "HOURS", value: timeLeft.hours },
+        { label: "MINS", value: timeLeft.minutes },
+      ].map((item, i) => (
+        <div key={i} className="flex flex-col items-center">
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl w-16 h-16 flex items-center justify-center text-2xl font-black text-white shadow-lg">
+            {item.value}
+          </div>
+          <span className="text-[10px] font-bold text-white/60 tracking-wider mt-2">{item.label}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -161,10 +210,24 @@ function HomeContent() {
 
       <div className="relative z-10 w-full max-w-lg">
         {/* Hero header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white/20 shadow-2xl mb-5 relative bg-white/5">
+            <Image 
+              src="/birthday-avatar.png" 
+              alt="Birthday Boy" 
+              fill 
+              className="object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+            {/* Fallback avatar icon if image fails to load */}
+            <div className="absolute inset-0 flex items-center justify-center text-4xl -z-10">👦</div>
+          </div>
+          
           <div className="inline-flex items-center gap-2 bg-violet-500/20 border border-violet-500/30 rounded-full px-4 py-1.5 text-violet-300 text-sm font-medium mb-4">
             <span>🎉</span>
-            <span>Limited tickets available</span>
+            <span>You're Invited!</span>
           </div>
           <h1
             className="text-5xl font-black text-white mb-3 leading-tight"
@@ -176,7 +239,7 @@ function HomeContent() {
           >
             {EVENT_NAME}
           </h1>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/60 text-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-white/60 text-sm mb-2">
             <span className="flex items-center gap-1.5">
               <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -192,6 +255,8 @@ function HomeContent() {
               {EVENT_LOCATION}
             </span>
           </div>
+          
+          <CountdownTimer targetDate={EVENT_DATE} />
         </div>
 
         {/* Cancelled notice */}
@@ -340,6 +405,37 @@ function HomeContent() {
                   {errors.phone.message}
                 </p>
               )}
+            </div>
+
+            {/* Message */}
+            <div>
+              <label className="block text-white/70 text-sm font-medium mb-2" htmlFor="message">
+                Special Message or Dietary Notes
+                <span className="text-white/30 font-normal ml-1">(optional)</span>
+              </label>
+              <textarea
+                {...register("message")}
+                id="message"
+                placeholder="Can't wait to celebrate! No allergies."
+                rows={3}
+                className="w-full px-4 py-3.5 rounded-xl text-white placeholder-white/30 text-sm outline-none transition-all duration-200 resize-none"
+                style={{
+                  background: "rgba(255,255,255,0.07)",
+                  border: errors.message
+                    ? "1px solid rgba(239,68,68,0.6)"
+                    : "1px solid rgba(255,255,255,0.12)",
+                }}
+                onFocus={(e) => {
+                  e.target.style.border = "1px solid rgba(167,139,250,0.6)";
+                  e.target.style.boxShadow = "0 0 0 3px rgba(167,139,250,0.15)";
+                }}
+                onBlur={(e) => {
+                  e.target.style.border = errors.message
+                    ? "1px solid rgba(239,68,68,0.6)"
+                    : "1px solid rgba(255,255,255,0.12)";
+                  e.target.style.boxShadow = "none";
+                }}
+              />
             </div>
 
             {/* Celebration note */}

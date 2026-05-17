@@ -8,6 +8,7 @@ interface Attendee {
   email: string;
   firstName: string;
   lastName: string;
+  message: string;
   status: string;
   createdAt: string;
 }
@@ -34,6 +35,27 @@ function AttendeesList() {
     }
   }, []);
 
+  const downloadCsv = () => {
+    const headers = ["Name", "Email", "Message", "Status", "Date Added"];
+    const csvContent = [
+      headers.join(","),
+      ...attendees.map(a => {
+        const name = `${a.firstName} ${a.lastName}`.trim().replace(/"/g, '""');
+        const message = (a.message || "").replace(/"/g, '""');
+        return `"${name}","${a.email}","${message}","${a.status}","${a.createdAt}"`;
+      })
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "gaddies-party-guests.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   useEffect(() => {
     fetchAttendees();
   }, [fetchAttendees]);
@@ -44,10 +66,26 @@ function AttendeesList() {
         <div>
           <h3 className="text-white font-bold text-2xl flex items-center gap-3">
             <span>🎈</span> Gaddie&apos;s Party Guests
+            {!loading && attendees.length > 0 && (
+              <span className="bg-white/10 text-white/80 text-sm py-1 px-2.5 rounded-lg border border-white/10">
+                {attendees.length} RSVPs
+              </span>
+            )}
           </h3>
           <p className="text-white/50 text-sm mt-1">See who is coming to celebrate!</p>
         </div>
-        <button
+        <div className="flex items-center gap-3">
+          <button
+            onClick={downloadCsv}
+            disabled={loading || attendees.length === 0}
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold text-white/80 transition-all disabled:opacity-50 flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download CSV
+          </button>
+          <button
           onClick={fetchAttendees}
           disabled={loading}
           className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-xl text-sm font-semibold text-violet-300 transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_15px_rgba(139,92,246,0.2)]"
@@ -64,6 +102,7 @@ function AttendeesList() {
           )}
           Refresh List
         </button>
+        </div>
       </div>
 
       {loading && attendees.length === 0 ? (
@@ -88,6 +127,7 @@ function AttendeesList() {
                 <tr className="text-white/60">
                   <th className="font-semibold py-4 px-6">Guest Name</th>
                   <th className="font-semibold py-4 px-6">Email Address</th>
+                  <th className="font-semibold py-4 px-6">Message</th>
                   <th className="font-semibold py-4 px-6">Status</th>
                   <th className="font-semibold py-4 px-6">RSVP Date</th>
                 </tr>
@@ -104,6 +144,9 @@ function AttendeesList() {
                         : "—"}
                     </td>
                     <td className="py-4 px-6">{attendee.email}</td>
+                    <td className="py-4 px-6 text-white/60 text-xs max-w-[200px] truncate" title={attendee.message || "No message"}>
+                      {attendee.message ? `"${attendee.message}"` : "—"}
+                    </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                         attendee.status === "SUBSCRIBED"
