@@ -43,6 +43,7 @@ export async function GET() {
       email: contact.email_address,
       firstName: contact.fields?.FirstName || "",
       lastName: contact.fields?.LastName || "",
+      message: contact.fields?.Message || "",
       status: contact.status, // e.g. "SUBSCRIBED"
       createdAt: contact.created_at,
     }));
