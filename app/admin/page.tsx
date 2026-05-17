@@ -3,422 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
-interface StatusData {
-  ticketTailor: {
-    configured: boolean;
-    eventId: string | null;
-    ticketTypeId: string | null;
-  };
-  emailOctopus: {
-    configured: boolean;
-    listId: string | null;
-  };
-  app: {
-    baseUrl: string;
-    eventName: string;
-    eventDate: string;
-    eventLocation: string;
-    ticketPriceCents: number;
-  };
-}
-
-interface TestResult {
-  success: boolean;
-  error?: string;
-  [key: string]: unknown;
-}
-
-function StatusBadge({
-  configured,
-  label,
-}: {
-  configured: boolean;
-  label: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-        configured
-          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-          : "bg-red-500/20 text-red-300 border border-red-500/30"
-      }`}
-    >
-      <span
-        className={`w-1.5 h-1.5 rounded-full ${configured ? "bg-emerald-400" : "bg-red-400"}`}
-      />
-      {label}
-    </span>
-  );
-}
-
-function IntegrationCard({
-  title,
-  icon,
-  configured,
-  details,
-  onTest,
-  testLabel,
-  testResult,
-  testing,
-}: {
-  title: string;
-  icon: string;
-  configured: boolean;
-  details: { label: string; value: string | null }[];
-  onTest: () => void;
-  testLabel: string;
-  testResult: TestResult | null;
-  testing: boolean;
-}) {
-  return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{icon}</span>
-          <div>
-            <h3 className="text-white font-semibold text-lg">{title}</h3>
-            <StatusBadge
-              configured={configured}
-              label={configured ? "Configured" : "Not configured"}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2 mb-5">
-        {details.map((d) => (
-          <div key={d.label} className="flex items-center justify-between">
-            <span className="text-white/50 text-sm">{d.label}</span>
-            <span
-              className={`text-sm font-mono ${d.value ? "text-white/80" : "text-red-400/70"}`}
-            >
-              {d.value || "Not set"}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={onTest}
-        disabled={testing || !configured}
-        className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-          configured
-            ? "bg-violet-600 hover:bg-violet-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-            : "bg-white/5 text-white/30 cursor-not-allowed"
-        }`}
-      >
-        {testing ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Testing...
-          </span>
-        ) : (
-          testLabel
-        )}
-      </button>
-
-      {testResult && (
-        <div
-          className={`mt-4 p-4 rounded-xl text-sm ${
-            testResult.success
-              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300"
-              : "bg-red-500/10 border border-red-500/20 text-red-300"
-          }`}
-        >
-          {testResult.success ? (
-            <div>
-              <p className="font-semibold mb-2">✓ Connection successful</p>
-              <pre className="text-xs opacity-75 overflow-auto whitespace-pre-wrap">
-                {JSON.stringify(testResult, null, 2)}
-              </pre>
-            </div>
-          ) : (
-            <div>
-              <p className="font-semibold mb-1">✗ Connection failed</p>
-              <p className="text-xs opacity-80">{testResult.error}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function AdminPage() {
-  const [status, setStatus] = useState<StatusData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [ttResult, setTtResult] = useState<TestResult | null>(null);
-  const [eoResult, setEoResult] = useState<TestResult | null>(null);
-  const [ttTesting, setTtTesting] = useState(false);
-  const [eoTesting, setEoTesting] = useState(false);
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/status");
-      const data = await res.json();
-      setStatus(data);
-    } catch (e) {
-      console.error("Failed to fetch status:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
-
-  const testTicketTailor = async () => {
-    setTtTesting(true);
-    setTtResult(null);
-    try {
-      const res = await fetch("/api/admin/test-ticket-tailor", {
-        method: "POST",
-      });
-      const data = await res.json();
-      setTtResult(data);
-    } catch (e) {
-      setTtResult({
-        success: false,
-        error: e instanceof Error ? e.message : "Network error",
-      });
-    } finally {
-      setTtTesting(false);
-    }
-  };
-
-  const testEmailOctopus = async () => {
-    setEoTesting(true);
-    setEoResult(null);
-    try {
-      const res = await fetch("/api/admin/test-email-octopus", {
-        method: "POST",
-      });
-      const data = await res.json();
-      setEoResult(data);
-    } catch (e) {
-      setEoResult({
-        success: false,
-        error: e instanceof Error ? e.message : "Network error",
-      });
-    } finally {
-      setEoTesting(false);
-    }
-  };
-
-  const allConfigured =
-    status?.ticketTailor.configured &&
-    status?.emailOctopus.configured;
-
-  return (
-    <div className="min-h-screen bg-[#0d0d1a]" style={{ fontFamily: "'Inter', sans-serif" }}>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet"
-      />
-
-      {/* Header */}
-      <div className="border-b border-white/10 bg-white/5 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-white font-bold text-lg leading-none">Admin Dashboard</h1>
-              <p className="text-white/40 text-xs mt-0.5">Integration Status</p>
-            </div>
-          </div>
-          <Link
-            href="/"
-            className="text-white/50 hover:text-white text-sm transition-colors flex items-center gap-1.5"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to app
-          </Link>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Overall status banner */}
-        {!loading && (
-          <div
-            className={`rounded-2xl p-5 mb-8 border ${
-              allConfigured
-                ? "bg-emerald-500/10 border-emerald-500/20"
-                : "bg-amber-500/10 border-amber-500/20"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{allConfigured ? "🟢" : "🟡"}</span>
-              <div>
-                <p
-                  className={`font-semibold ${allConfigured ? "text-emerald-300" : "text-amber-300"}`}
-                >
-                  {allConfigured
-                    ? "All integrations configured — ready to sell tickets!"
-                    : "Some integrations need API keys — fill in .env.local to complete setup"}
-                </p>
-                <p className="text-white/40 text-sm mt-0.5">
-                  Restart the dev server after editing .env.local
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex items-center gap-3 text-white/50">
-              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Loading status...
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Integration cards */}
-            <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <IntegrationCard
-                title="Ticket Tailor"
-                icon="🎟️"
-                configured={status?.ticketTailor.configured ?? false}
-                details={[
-                  { label: "Event ID", value: status?.ticketTailor.eventId || null },
-                  {
-                    label: "Ticket Type ID",
-                    value: status?.ticketTailor.ticketTypeId || null,
-                  },
-                ]}
-                onTest={testTicketTailor}
-                testLabel="Test Connection"
-                testResult={ttResult}
-                testing={ttTesting}
-              />
-
-              <IntegrationCard
-                title="EmailOctopus"
-                icon="🐙"
-                configured={status?.emailOctopus.configured ?? false}
-                details={[
-                  { label: "List ID", value: status?.emailOctopus.listId || null },
-                ]}
-                onTest={testEmailOctopus}
-                testLabel="Test Connection"
-                testResult={eoResult}
-                testing={eoTesting}
-              />
-            </div>
-
-            {/* App config */}
-            <div className="grid gap-6 md:grid-cols-2 mb-8">
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-2xl">🎂</span>
-                  <h3 className="text-white font-semibold text-lg">Event Config</h3>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { label: "Event name", value: status?.app.eventName },
-                    { label: "Date", value: status?.app.eventDate },
-                    { label: "Location", value: status?.app.eventLocation },
-                    {
-                      label: "Ticket price",
-                      value: status?.app.ticketPriceCents
-                        ? `$${(status.app.ticketPriceCents / 100).toFixed(2)}`
-                        : null,
-                    },
-                    { label: "Base URL", value: status?.app.baseUrl },
-                  ].map((d) => (
-                    <div key={d.label} className="flex items-center justify-between">
-                      <span className="text-white/50 text-sm">{d.label}</span>
-                      <span className="text-sm text-white/80 text-right max-w-[200px] truncate">
-                        {d.value || "Not set"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Setup guide */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-white font-semibold text-lg mb-4 flex items-center gap-2">
-                <span>📋</span> Setup Checklist
-              </h3>
-              <div className="space-y-3">
-                {[
-                  {
-                    done: status?.ticketTailor.configured ?? false,
-                    label: "Add Ticket Tailor API key, Event ID, and Ticket Type ID",
-                    detail: "Box office → Manage → API. Event ID from event URL. Ticket Type ID from your event's ticket types.",
-                  },
-                  {
-                    done: status?.emailOctopus.configured ?? false,
-                    label: "Add EmailOctopus API key and List ID",
-                    detail: "Dashboard → API → Create key. List ID from Lists → your list → Settings.",
-                  },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div
-                      className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        item.done
-                          ? "bg-emerald-500 text-white"
-                          : "border-2 border-white/20"
-                      }`}
-                    >
-                      {item.done && (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-medium ${item.done ? "text-white/50 line-through" : "text-white"}`}>
-                        {item.label}
-                      </p>
-                      <p className="text-white/30 text-xs mt-0.5">{item.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Attendees List */}
-        {!loading && status?.emailOctopus.configured && (
-          <div className="mt-8">
-            <AttendeesList />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Attendees List Component ──────────────────────────────────────────────────
 interface Attendee {
   id: string;
   email: string;
@@ -439,12 +23,12 @@ function AttendeesList() {
     try {
       const res = await fetch("/api/admin/attendees");
       if (!res.ok) {
-        throw new Error("Failed to fetch attendees");
+        throw new Error("Failed to fetch friends list");
       }
       const data = await res.json();
       setAttendees(data.attendees || []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error fetching attendees");
+      setError(e instanceof Error ? e.message : "Error fetching friends list");
     } finally {
       setLoading(false);
     }
@@ -455,81 +39,135 @@ function AttendeesList() {
   }, [fetchAttendees]);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-          <span>👥</span> Registered Attendees
-        </h3>
+    <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm shadow-xl">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h3 className="text-white font-bold text-2xl flex items-center gap-3">
+            <span>🎈</span> Gaddie&apos;s Party Guests
+          </h3>
+          <p className="text-white/50 text-sm mt-1">See who is coming to celebrate!</p>
+        </div>
         <button
           onClick={fetchAttendees}
           disabled={loading}
-          className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white/70 hover:text-white transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          className="px-4 py-2 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/30 rounded-xl text-sm font-semibold text-violet-300 transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_15px_rgba(139,92,246,0.2)]"
         >
           {loading ? (
-            <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           ) : (
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           )}
-          Refresh
+          Refresh List
         </button>
       </div>
 
       {loading && attendees.length === 0 ? (
-        <div className="py-10 text-center text-white/40 text-sm">Loading attendees...</div>
+        <div className="py-16 text-center text-white/40 text-sm flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-400 rounded-full animate-spin" />
+          Checking the guest list...
+        </div>
       ) : error ? (
-        <div className="py-5 px-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm">
-          {error}
+        <div className="py-6 px-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-300 text-sm flex items-center gap-3">
+          <span className="text-xl">⚠️</span> {error}
         </div>
       ) : attendees.length === 0 ? (
-        <div className="py-10 text-center text-white/40 text-sm">No attendees found yet.</div>
+        <div className="py-16 text-center text-white/40 text-sm bg-white/[0.02] rounded-2xl border border-white/5">
+          <span className="text-3xl block mb-3">🎁</span>
+          No friends have RSVP&apos;d yet. They will show up here soon!
+        </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead>
-              <tr className="text-white/40 border-b border-white/10">
-                <th className="font-medium py-3 px-4">Name</th>
-                <th className="font-medium py-3 px-4">Email</th>
-                <th className="font-medium py-3 px-4">Status</th>
-                <th className="font-medium py-3 px-4">Date Added</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {attendees.map((attendee) => (
-                <tr key={attendee.id} className="hover:bg-white/[0.02] transition-colors text-white/80">
-                  <td className="py-3 px-4 font-medium text-white">
-                    {attendee.firstName || attendee.lastName
-                      ? `${attendee.firstName} ${attendee.lastName}`.trim()
-                      : "—"}
-                  </td>
-                  <td className="py-3 px-4">{attendee.email}</td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                      attendee.status === "SUBSCRIBED"
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-white/10 text-white/50"
-                    }`}>
-                      {attendee.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-white/40">
-                    {new Date(attendee.createdAt).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit"
-                    })}
-                  </td>
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-white/5">
+                <tr className="text-white/60">
+                  <th className="font-semibold py-4 px-6">Guest Name</th>
+                  <th className="font-semibold py-4 px-6">Email Address</th>
+                  <th className="font-semibold py-4 px-6">Status</th>
+                  <th className="font-semibold py-4 px-6">RSVP Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {attendees.map((attendee) => (
+                  <tr key={attendee.id} className="hover:bg-white/[0.04] transition-colors text-white/80">
+                    <td className="py-4 px-6 font-medium text-white flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                        {(attendee.firstName?.[0] || attendee.email[0]).toUpperCase()}
+                      </div>
+                      {attendee.firstName || attendee.lastName
+                        ? `${attendee.firstName} ${attendee.lastName}`.trim()
+                        : "—"}
+                    </td>
+                    <td className="py-4 px-6">{attendee.email}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        attendee.status === "SUBSCRIBED"
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-white/10 text-white/50 border border-white/10"
+                      }`}>
+                        {attendee.status === "SUBSCRIBED" ? "Going 🎂" : attendee.status}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-white/40">
+                      {new Date(attendee.createdAt).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit"
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <div className="min-h-screen bg-[#0d0d1a]" style={{ fontFamily: "'Inter', sans-serif" }}>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet"
+      />
+
+      {/* Header */}
+      <div className="border-b border-white/10 bg-white/5 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-pink-500 flex items-center justify-center shadow-[0_0_15px_rgba(139,92,246,0.5)]">
+              <span className="text-xl">🎂</span>
+            </div>
+            <div>
+              <h1 className="text-white font-black text-xl leading-none tracking-tight">Gaddie&apos;s 5th Birthday</h1>
+              <p className="text-violet-300/80 text-xs mt-1 font-medium">Party Dashboard</p>
+            </div>
+          </div>
+          <Link
+            href="/"
+            className="px-4 py-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 text-sm font-medium transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Invite
+          </Link>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-10">
+        {/* Attendees List */}
+        <AttendeesList />
+      </div>
     </div>
   );
 }
